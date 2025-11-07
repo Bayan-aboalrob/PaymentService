@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace PaymentService.Application
 {
-    internal class ServiceCollectionExtensions
+    public static class ServiceCollectionExtensions
     {
+        public static IServiceCollection AddPaymentApplication(this IServiceCollection services)
+        {
+            services.AddMediatR(typeof(ServiceCollectionExtensions).Assembly);
+            return services;
+        }
     }
 }

@@ -1,12 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FlashSaleDB;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using PaymentService.Application.Contracts;
+using PaymentService.Infrastructure.Messaging;
+using PaymentService.Infrastructure.Persistence.Repositories;
+using PaymentService.Infrastructure.Persistence.Services;
 
 namespace PaymentService.Infrastructure
 {
-    internal class ServiceCollectionExtensions
+    public static class ServiceCollectionExtensions
     {
+        public static IServiceCollection AddPaymentInfrastructure(
+            this IServiceCollection services,
+            IConfiguration configuration)
+        {
+            var connStr = configuration.GetConnectionString("FlashSaleDb");
+
+            services.AddDbContext<FlashSaleDbContext>(options =>
+            {
+                options.UseSqlServer(connStr);
+            });
+
+            services.AddScoped<IPaymentRepository, PaymentRepository>();
+
+            services.AddScoped<IPaymentProcessor, FakePaymentProcessor>();
+
+            services.AddSingleton<IBusPublisher, RabbitMqPublisher>();
+
+            services.AddHostedService<OrderCreatedSingleConsumer>();
+
+            return services;
+        }
     }
 }

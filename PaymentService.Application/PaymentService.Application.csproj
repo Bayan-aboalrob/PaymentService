@@ -7,19 +7,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\FlashSaleDB\FlashSaleDB\FlashSaleDB.csproj" />
     <ProjectReference Include="..\PaymentService.Domain\PaymentService.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Contracts\" />
-    <Folder Include="Commands\" />
-    <Folder Include="Handlers\" />
     <Folder Include="Exceptions\" />
-    <Folder Include="DTOs\" />
     <Folder Include="Services\" />
     <Folder Include="Profiles\" />
     <Folder Include="Validators\" />
     <Folder Include="Queries\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="11.1.0" />
+    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
   </ItemGroup>
 
 </Project>
