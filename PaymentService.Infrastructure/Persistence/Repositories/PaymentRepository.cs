@@ -18,5 +18,8 @@ namespace PaymentService.Infrastructure.Persistence.Repositories
 
         public Task SaveChangesAsync(CancellationToken ct = default)
             => _ctx.SaveChangesAsync(ct);
+
+        public Task<bool> OrderExistsAsync(Guid orderId, CancellationToken ct = default)
+            => _ctx.Order.AnyAsync(o => o.Id == orderId, ct);
     }
 }

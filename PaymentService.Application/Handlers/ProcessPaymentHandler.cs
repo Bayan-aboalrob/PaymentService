@@ -28,6 +28,20 @@ namespace PaymentService.Application.Payments.Handlers
             if (existing is not null)
                 return existing.Id;
 
+            var tries = 0;
+            var exists = await _repo.OrderExistsAsync(request.OrderId, ct);
+            while (!exists && tries < 3)
+            {
+                tries++;
+                await Task.Delay(300, ct);
+                exists = await _repo.OrderExistsAsync(request.OrderId, ct);
+            }
+
+            if (!exists)
+            {
+                throw new InvalidOperationException($"Order {request.OrderId} not found when processing payment.");
+            }
+
             var payment = new Payment
             {
                 Id = Guid.NewGuid(),
@@ -35,7 +49,7 @@ namespace PaymentService.Application.Payments.Handlers
                 UserId = request.UserId,
                 Amount = request.Amount,
                 PaymentMethod = request.PaymentMethod,
-                CorrelationId = request.CorrelationId,
+                CorrelationId = request.CorrelationId?.ToString(),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
@@ -48,7 +62,8 @@ namespace PaymentService.Application.Payments.Handlers
                 request.UserId,
                 request.Amount,
                 request.CorrelationId,
-                ct);
+                ct
+            );
 
             payment.Status = ok ? "Succeeded" : "Failed";
             payment.UpdatedAt = DateTime.UtcNow;

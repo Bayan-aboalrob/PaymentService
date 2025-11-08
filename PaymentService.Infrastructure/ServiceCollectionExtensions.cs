@@ -28,7 +28,7 @@ namespace PaymentService.Infrastructure
 
             services.AddSingleton<IBusPublisher, RabbitMqPublisher>();
 
-            services.AddHostedService<OrderCreatedSingleConsumer>();
+         //   services.AddHostedService<OrderCreatedSingleConsumer>();
 
             return services;
         }

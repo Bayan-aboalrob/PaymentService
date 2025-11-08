@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,6 +20,11 @@ namespace PaymentService.Infrastructure.Messaging
         private readonly IConnection _conn;
         private readonly IModel _ch;
         private readonly string _queue;
+
+        private static readonly JsonSerializerOptions JsonOpts = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
         public OrderCreatedSingleConsumer(
             ILogger<OrderCreatedSingleConsumer> log,
@@ -47,7 +53,7 @@ namespace PaymentService.Infrastructure.Messaging
             _ch.ExchangeDeclare(exchange, exchangeType, durable: true);
 
             _queue = "payment.order-created.v1";
-            _ch.QueueDeclare(_queue, true, false, false);
+            _ch.QueueDeclare(_queue, durable: true, exclusive: false, autoDelete: false);
             _ch.QueueBind(_queue, exchange, "Order.Created");
 
             _ch.BasicQos(0, 1, false);
@@ -67,7 +73,7 @@ namespace PaymentService.Infrastructure.Messaging
             try
             {
                 var json = Encoding.UTF8.GetString(ea.Body.ToArray());
-                var msg = JsonSerializer.Deserialize<OrderCreatedIntegrationEvent>(json);
+                var msg = JsonSerializer.Deserialize<OrderCreatedIntegrationEvent>(json, JsonOpts);
 
                 if (msg is null)
                 {
@@ -75,16 +81,48 @@ namespace PaymentService.Infrastructure.Messaging
                     return;
                 }
 
-                using var scope = _sp.CreateScope();
-                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                if (msg.Id == Guid.Empty)
+                {
+                    _log.LogWarning("Received Order.Created with empty Id, skipping.");
+                    _ch.BasicAck(ea.DeliveryTag, false);
+                    return;
+                }
 
-                await mediator.Send(new ProcessPaymentCommand(
-                    msg.Id,
-                    msg.UserId,
-                    msg.Total,
-                    "Card",
-                    msg.CorrelationId
-                ));
+                Guid? correlationId = null;
+                if (!string.IsNullOrWhiteSpace(msg.CorrelationId) &&
+                    Guid.TryParse(msg.CorrelationId, out var parsed))
+                {
+                    correlationId = parsed;
+                }
+
+                var attempt = 0;
+                var processed = false;
+
+                while (!processed && attempt < 3)
+                {
+                    attempt++;
+                    try
+                    {
+                        using var scope = _sp.CreateScope();
+                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+                        await mediator.Send(new ProcessPaymentCommand(
+                            msg.Id,
+                            msg.UserId,
+                            msg.Total,
+                            "Card",
+                            correlationId
+                        ), CancellationToken.None);
+
+                        processed = true;
+                    }
+                    catch (DbUpdateException dbEx) when (
+                        dbEx.InnerException?.Message.Contains("FK_Payment_Order_OrderId") == true)
+                    {
+                        _log.LogWarning("Order {OrderId} not yet visible, retrying ({Attempt}/3)...", msg.Id, attempt);
+                        await Task.Delay(300);
+                    }
+                }
 
                 _ch.BasicAck(ea.DeliveryTag, false);
             }

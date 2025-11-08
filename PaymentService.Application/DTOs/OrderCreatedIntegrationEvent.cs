@@ -1,12 +1,26 @@
-﻿namespace PaymentService.Application.Dtos
+﻿using System.Text.Json.Serialization;
+
+namespace PaymentService.Application.Dtos
 {
     public sealed class OrderCreatedIntegrationEvent
     {
-        public Guid Id { get; set; }          
-        public Guid UserId { get; set; }        
-        public Guid ProductId { get; set; }     
+        [JsonPropertyName("id")]
+        public Guid Id { get; set; }
+
+        [JsonPropertyName("userId")]
+        public Guid UserId { get; set; }
+
+        [JsonPropertyName("productId")]
+        public Guid ProductId { get; set; }
+
+        [JsonPropertyName("quantity")]
         public int Quantity { get; set; }
+
+        [JsonPropertyName("total")]
         public decimal Total { get; set; }
-        public Guid? CorrelationId { get; set; }
+
+        // note: string, because your producer sends a string
+        [JsonPropertyName("correlationId")]
+        public string? CorrelationId { get; set; }
     }
 }
