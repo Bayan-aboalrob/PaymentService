@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FlashSaleDB;
 using PaymentService.Application.Commands;
+using PaymentService.Application.Queries;
 
 namespace PaymentService.API.Controllers.V1
 {
@@ -19,6 +20,7 @@ namespace PaymentService.API.Controllers.V1
             _ctx = ctx;
         }
 
+        // GET /api/v1/payments/{orderId}
         [HttpGet("{orderId:guid}")]
         public async Task<IActionResult> GetByOrder(Guid orderId, CancellationToken ct)
         {
@@ -28,6 +30,7 @@ namespace PaymentService.API.Controllers.V1
 
             return payment is null ? NotFound() : Ok(payment);
         }
+
         public sealed class CreatePaymentRequest
         {
             public Guid OrderId { get; set; }
@@ -37,10 +40,18 @@ namespace PaymentService.API.Controllers.V1
             public Guid? CorrelationId { get; set; }
         }
 
+        public sealed record CreatePaymentResponse(
+            Guid PaymentId,
+            Guid OrderId,
+            Guid UserId,
+            string Status
+        );
+
+        // POST /api/v1/payments
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreatePaymentRequest req, CancellationToken ct)
         {
-            var id = await _mediator.Send(
+            var paymentId = await _mediator.Send(
                 new ProcessPaymentCommand(
                     req.OrderId,
                     req.UserId,
@@ -50,7 +61,25 @@ namespace PaymentService.API.Controllers.V1
                 ),
                 ct);
 
-            return CreatedAtAction(nameof(GetByOrder), new { orderId = req.OrderId }, new { paymentId = id });
+            var payment = await _mediator.Send(new GetPaymentByIdQuery(paymentId), ct);
+
+            if (payment is null)
+            {
+                return CreatedAtAction(nameof(GetByOrder), new { orderId = req.OrderId }, new { paymentId });
+            }
+
+            var response = new CreatePaymentResponse(
+                PaymentId: payment.PaymentId,
+                OrderId: payment.OrderId,
+                UserId: payment.UserId,
+                Status: payment.Status
+            );
+
+            return CreatedAtAction(
+                nameof(GetByOrder),
+                new { orderId = payment.OrderId },
+                response
+            );
         }
     }
 }
