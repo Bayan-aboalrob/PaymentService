@@ -2,6 +2,7 @@
 using MediatR;
 using PaymentService.Application.Commands;
 using PaymentService.Application.Contracts;
+using PaymentService.Application.Services;
 
 namespace PaymentService.Application.Payments.Handlers
 {
@@ -11,15 +12,18 @@ namespace PaymentService.Application.Payments.Handlers
         private readonly IPaymentRepository _repo;
         private readonly IPaymentProcessor _processor;
         private readonly IBusPublisher _bus;
+        private readonly IHttpClientUtils _httpClient;
 
         public ProcessPaymentHandler(
             IPaymentRepository repo,
             IPaymentProcessor processor,
-            IBusPublisher bus)
+            IBusPublisher bus,
+            IHttpClientUtils httpClient)
         {
             _repo = repo;
             _processor = processor;
             _bus = bus;
+            _httpClient = httpClient;
         }
 
         public async Task<Guid> Handle(ProcessPaymentCommand request, CancellationToken ct)
@@ -69,16 +73,27 @@ namespace PaymentService.Application.Payments.Handlers
             payment.UpdatedAt = DateTime.UtcNow;
             await _repo.SaveChangesAsync(ct);
 
-            await _bus.PublishAsync(ok ? "Payment.Succeeded" : "Payment.Failed", new
+            if (request.ExecutionMode == PaymentExecutionMode.Synchronous)
             {
-                payment.Id,
-                payment.OrderId,
-                payment.UserId,
-                payment.Amount,
-                payment.PaymentMethod,
-                payment.Status,
-                payment.CorrelationId
-            }, ct);
+                // https://localhost/order
+                await _httpClient.SendHttpRequest($"http://localhost/order/api/v1/Orders/{payment.OrderId}/status", new { NewStatus = ok ? "Paid" : "PendingPayment" }, HttpMethod.Put);
+                
+                // https://localhost/inventory
+                await _httpClient.SendHttpRequest("http://localhost/inventory/api/v1/inventory/cache/apply-order", new { orderId = payment.OrderId }, HttpMethod.Post);
+            }
+            else
+            {
+                await _bus.PublishAsync(ok ? "Payment.Succeeded" : "Payment.Failed", new
+                {
+                    payment.Id,
+                    payment.OrderId,
+                    payment.UserId,
+                    payment.Amount,
+                    payment.PaymentMethod,
+                    payment.Status,
+                    payment.CorrelationId
+                }, ct);   
+            }
 
             return payment.Id;
         }

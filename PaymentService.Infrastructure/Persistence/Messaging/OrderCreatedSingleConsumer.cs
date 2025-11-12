@@ -111,7 +111,8 @@ namespace PaymentService.Infrastructure.Messaging
                             msg.UserId,
                             msg.Total,
                             "Card",
-                            correlationId
+                            correlationId,
+                            PaymentExecutionMode.FireAndForgetBus
                         ), CancellationToken.None);
 
                         processed = true;

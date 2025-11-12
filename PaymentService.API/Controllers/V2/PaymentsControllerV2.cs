@@ -5,16 +5,16 @@ using FlashSaleDB;
 using PaymentService.Application.Commands;
 using PaymentService.Application.Queries;
 
-namespace PaymentService.API.Controllers.V1
+namespace PaymentService.API.Controllers.V2
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
-    public class PaymentsController : ControllerBase
+    [Route("api/v2/Payments")]
+    public class PaymentsControllerV2 : ControllerBase
     {
         private readonly IMediator _mediator;
         private readonly FlashSaleDbContext _ctx;
 
-        public PaymentsController(IMediator mediator, FlashSaleDbContext ctx)
+        public PaymentsControllerV2(IMediator mediator, FlashSaleDbContext ctx)
         {
             _mediator = mediator;
             _ctx = ctx;
@@ -22,30 +22,14 @@ namespace PaymentService.API.Controllers.V1
 
         // GET /api/v1/payments/{orderId}
         [HttpGet("{orderId:guid}")]
-        public async Task<IActionResult> GetByOrder(Guid orderId, CancellationToken ct)
+        public async Task<IActionResult> GetByOrder(string orderId, CancellationToken ct)
         {
             var payment = await _ctx.Payment
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.OrderId == orderId, ct);
+                .FirstOrDefaultAsync(p => p.OrderId == Guid.Parse(orderId), ct);
 
             return payment is null ? NotFound() : Ok(payment);
         }
-
-        public sealed class CreatePaymentRequest
-        {
-            public Guid OrderId { get; set; }
-            public Guid UserId { get; set; }
-            public decimal Amount { get; set; }
-            public string PaymentMethod { get; set; } = "Card";
-            public Guid? CorrelationId { get; set; }
-        }
-
-        public sealed record CreatePaymentResponse(
-            Guid PaymentId,
-            Guid OrderId,
-            Guid UserId,
-            string Status
-        );
 
         // POST /api/v1/payments
         [HttpPost]
@@ -57,7 +41,8 @@ namespace PaymentService.API.Controllers.V1
                     req.UserId,
                     req.Amount,
                     req.PaymentMethod,
-                    req.CorrelationId
+                    req.CorrelationId,
+                    PaymentExecutionMode.FireAndForgetBus
                 ),
                 ct);
 

@@ -7,14 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\FlashSaleDB\FlashSaleDB\FlashSaleDB.csproj" />
+    <ProjectReference Include="..\..\FlashSaleDB\FlashSaleDB\FlashSaleDB.csproj" />
     <ProjectReference Include="..\PaymentService.Domain\PaymentService.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Exceptions\" />
     <Folder Include="Handlers\NewFolder\" />
-    <Folder Include="Services\" />
     <Folder Include="Profiles\" />
     <Folder Include="Validators\" />
   </ItemGroup>

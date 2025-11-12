@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PaymentService.Application.Contracts;
+using PaymentService.Application.Services;
 using PaymentService.Infrastructure.Messaging;
 using PaymentService.Infrastructure.Persistence.Repositories;
 using PaymentService.Infrastructure.Persistence.Services;
@@ -25,6 +26,8 @@ namespace PaymentService.Infrastructure
             services.AddScoped<IPaymentRepository, PaymentRepository>();
 
             services.AddScoped<IPaymentProcessor, FakePaymentProcessor>();
+            
+            services.AddScoped<IHttpClientUtils, HttpClientUtils>();
 
             services.AddSingleton<IBusPublisher, RabbitMqPublisher>();
 
